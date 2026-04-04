@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dropship Manager — Global Dropshipping Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --surface2: #1a1a1a;
+    --border: #222222;
+    --border2: #2e2e2e;
+    --accent: #00e5a0;
+    --accent2: #00b37d;
+    --red: #ff4d4d;
+    --amber: #ffb800;
+    --blue: #4d9fff;
+    --text: #f0f0f0;
+    --text2: #888888;
+    --text3: #555555;
+    --font-head: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 14px; min-height: 100vh; display: flex; }
+
+  /* Sidebar */
+  .sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+  .logo { padding: 24px 20px 20px; border-bottom: 1px solid var(--border); }
+  .logo-mark { font-family: var(--font-head); font-size: 20px; font-weight: 800; color: var(--accent); letter-spacing: -0.5px; }
+  .logo-sub { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 1.5px; margin-top: 2px; font-family: var(--font-mono); }
+  .nav { padding: 12px 0; flex: 1; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 20px; font-size: 13px; color: var(--text2); cursor: pointer; transition: all 0.15s; border-left: 2px solid transparent; }
+  .nav-item:hover { color: var(--text); background: var(--surface2); }
+  .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(0,229,160,0.05); }
+  .nav-icon { width: 16px; height: 16px; opacity: 0.7; }
+  .nav-item.active .nav-icon { opacity: 1; }
+  .sidebar-footer { padding: 16px 20px; border-top: 1px solid var(--border); }
+  .plan-badge { background: rgba(0,229,160,0.1); border: 1px solid rgba(0,229,160,0.2); border-radius: var(--radius-sm); padding: 6px 10px; font-size: 11px; color: var(--accent); font-family: var(--font-mono); }
+
+  /* Main */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { padding: 16px 28px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--surface); }
+  .page-title { font-family: var(--font-head); font-size: 18px; font-weight: 700; }
+  .topbar-actions { display: flex; gap: 10px; align-items: center; }
+  .btn { padding: 8px 16px; border-radius: var(--radius-sm); font-size: 13px; font-family: var(--font-body); cursor: pointer; transition: all 0.15s; border: none; font-weight: 500; }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border2); }
+  .btn-ghost:hover { color: var(--text); border-color: var(--text3); }
+  .content { flex: 1; overflow-y: auto; padding: 28px; }
+
+  /* Stats row */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; }
+  .stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; font-family: var(--font-mono); margin-bottom: 8px; }
+  .stat-value { font-family: var(--font-head); font-size: 26px; font-weight: 700; }
+  .stat-value.green { color: var(--accent); }
+  .stat-value.red { color: var(--red); }
+  .stat-value.amber { color: var(--amber); }
+  .stat-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  /* Section */
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .section-title { font-family: var(--font-head); font-size: 15px; font-weight: 600; }
+  .section-action { font-size: 12px; color: var(--accent); cursor: pointer; }
+
+  /* Orders table */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 28px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 12px 16px; font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; font-family: var(--font-mono); font-weight: 400; border-bottom: 1px solid var(--border); }
+  td { padding: 13px 16px; font-size: 13px; border-bottom: 1px solid var(--border); color: var(--text2); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+  .order-id { font-family: var(--font-mono); font-size: 12px; color: var(--text3); }
+  .customer { color: var(--text); font-weight: 500; }
+  .product-cell { color: var(--text); }
+  .profit { color: var(--accent); font-family: var(--font-mono); font-weight: 500; }
+  .profit.neg { color: var(--red); }
+
+  /* Status badges */
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 500; font-family: var(--font-mono); }
+  .badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; }
+  .badge-shipped { background: rgba(0,229,160,0.1); color: var(--accent); border: 1px solid rgba(0,229,160,0.2); }
+  .badge-shipped::before { background: var(--accent); }
+  .badge-pending { background: rgba(255,184,0,0.1); color: var(--amber); border: 1px solid rgba(255,184,0,0.2); }
+  .badge-pending::before { background: var(--amber); }
+  .badge-processing { background: rgba(77,159,255,0.1); color: var(--blue); border: 1px solid rgba(77,159,255,0.2); }
+  .badge-processing::before { background: var(--blue); }
+  .badge-cancelled { background: rgba(255,77,77,0.1); color: var(--red); border: 1px solid rgba(255,77,77,0.2); }
+  .badge-cancelled::before { background: var(--red); }
+
+  /* Bottom grid */
+  .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .panel-title { font-family: var(--font-head); font-size: 14px; font-weight: 600; margin-bottom: 16px; }
+
+  /* Product list */
+  .product-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .product-row:last-child { border-bottom: none; }
+  .product-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .product-info { flex: 1; }
+  .product-name { font-size: 13px; color: var(--text); margin-bottom: 2px; }
+  .product-sales { font-size: 11px; color: var(--text3); font-family: var(--font-mono); }
+  .product-rev { font-size: 13px; color: var(--accent); font-family: var(--font-mono); font-weight: 500; }
+
+  /* WhatsApp templates */
+  .wa-template { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 10px; }
+  .wa-template:last-child { margin-bottom: 0; }
+  .wa-title { font-size: 11px; color: var(--accent); font-family: var(--font-mono); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .wa-text { font-size: 12px; color: var(--text2); line-height: 1.6; }
+  .wa-copy { float: right; font-size: 11px; color: var(--text3); cursor: pointer; padding: 2px 8px; border: 1px solid var(--border2); border-radius: 4px; font-family: var(--font-mono); }
+  .wa-copy:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* Add order modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); padding: 28px; width: 480px; max-width: 95vw; }
+  .modal-title { font-family: var(--font-head); font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+  .form-row { margin-bottom: 14px; }
+  .form-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; font-family: var(--font-mono); margin-bottom: 6px; display: block; }
+  .form-input { width: 100%; background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 10px 12px; color: var(--text); font-size: 13px; font-family: var(--font-body); outline: none; }
+  .form-input:focus { border-color: var(--accent); }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .profit-preview { background: rgba(0,229,160,0.05); border: 1px solid rgba(0,229,160,0.15); border-radius: var(--radius-sm); padding: 12px; margin-top: 14px; display: flex; justify-content: space-between; align-items: center; }
+  .profit-preview-label { font-size: 12px; color: var(--text3); font-family: var(--font-mono); }
+  .profit-preview-value { font-size: 20px; font-weight: 700; color: var(--accent); font-family: var(--font-head); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  select.form-input option { background: var(--surface2); }
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="logo">
+    <div class="logo-mark">Dropship Manager</div>
+    <div class="logo-sub">Global · All currencies</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-item active" onclick="showPage('dashboard')">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1" stroke-width="2"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-item" onclick="showPage('orders')">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      Orders
+    </div>
+    <div class="nav-item" onclick="showPage('products')">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+      Products
+    </div>
+    <div class="nav-item" onclick="showPage('whatsapp')">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+      WhatsApp
+    </div>
+    <div class="nav-item" onclick="showPage('profit')">
+      <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+      Profit Calc
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="plan-badge">FREE PLAN · 50 orders/mo</div>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <div class="topbar">
+    <div class="page-title" id="page-title">Dashboard</div>
+    <div class="topbar-actions">
+      <select id="currency-select" onchange="setCurrency()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:7px 12px;color:var(--text);font-size:13px;font-family:var(--font-mono);outline:none;cursor:pointer;">
+        <option value="R">🇿🇦 ZAR (R)</option>
+        <option value="₦">🇳🇬 NGN (₦)</option>
+        <option value="KSh">🇰🇪 KES (KSh)</option>
+        <option value="$">🇺🇸 USD ($)</option>
+        <option value="£">🇬🇧 GBP (£)</option>
+        <option value="CA$">🇨🇦 CAD (CA$)</option>
+        <option value="A$">🇦🇺 AUD (A$)</option>
+        <option value="€">🇪🇺 EUR (€)</option>
+        <option value="₹">🇮🇳 INR (₹)</option>
+        <option value="₱">🇵🇭 PHP (₱)</option>
+        <option value="R$">🇧🇷 BRL (R$)</option>
+        <option value="AED">🇦🇪 AED</option>
+        <option value="RM">🇲🇾 MYR (RM)</option>
+      </select>
+      <button class="btn btn-ghost" onclick="openModal()">+ Add Order</button>
+      <button class="btn btn-primary">Upgrade → Pro</button>
+    </div>
+  </div>
+
+  <div class="content" id="content">
+    <!-- Dashboard page rendered by JS -->
+  </div>
+</div>
+
+<!-- Add Order Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-title">Add new order</div>
+    <div class="form-grid">
+      <div class="form-row">
+        <label class="form-label">Customer name</label>
+        <input class="form-input" id="f-name" placeholder="John Dlamini" oninput="updateProfit()">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Country</label>
+        <select class="form-input" id="f-country">
+          <option>South Africa</option>
+          <option>Nigeria</option>
+          <option>Kenya</option>
+          <option>Ghana</option>
+          <option>Egypt</option>
+          <option>USA</option>
+          <option>UK</option>
+          <option>Canada</option>
+          <option>Australia</option>
+          <option>India</option>
+          <option>Philippines</option>
+          <option>Brazil</option>
+          <option>Mexico</option>
+          <option>UAE</option>
+          <option>Malaysia</option>
+          <option>Indonesia</option>
+          <option>Germany</option>
+          <option>France</option>
+          <option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Product name</label>
+      <input class="form-input" id="f-product" placeholder="Car seat gap organiser" oninput="updateProfit()">
+    </div>
+    <div class="form-grid">
+      <div class="form-row">
+        <label class="form-label">Sale price</label>
+        <input class="form-input" id="f-sell" type="number" placeholder="299" oninput="updateProfit()">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Cost price</label>
+        <input class="form-input" id="f-cost" type="number" placeholder="60" oninput="updateProfit()">
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">AliExpress order link</label>
+      <input class="form-input" id="f-link" placeholder="https://aliexpress.com/...">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Status</label>
+      <select class="form-input" id="f-status">
+        <option>Pending</option>
+        <option>Processing</option>
+        <option>Shipped</option>
+        <option>Delivered</option>
+        <option>Cancelled</option>
+      </select>
+    </div>
+    <div class="profit-preview">
+      <div>
+        <div class="profit-preview-label">Estimated profit</div>
+      </div>
+      <div class="profit-preview-value" id="profit-preview">R0</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" style="flex:1" onclick="addOrder()">Add order</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let currency = 'R';
+function setCurrency() {
+  currency = document.getElementById('currency-select').value;
+  showPage(currentPage);
+}
+
+const PAGES = { dashboard: 'Dashboard', orders: 'Orders', products: 'Products', whatsapp: 'WhatsApp Templates', profit: 'Profit Calculator' };
+let currentPage = 'dashboard';
+
+let orders = [
+  { id: 'ORD-001', customer: 'Thabo Nkosi', country: 'South Africa', product: 'Car seat gap organiser', sell: 299, cost: 60, status: 'Shipped', date: '2026-04-01', link: '' },
+  { id: 'ORD-002', customer: 'Aisha Patel', country: 'South Africa', product: 'Rain cloud diffuser', sell: 520, cost: 120, status: 'Processing', date: '2026-04-02', link: '' },
+  { id: 'ORD-003', customer: 'James Okafor', country: 'Nigeria', product: 'Sneaker wash bag', sell: 150, cost: 30, status: 'Pending', date: '2026-04-03', link: '' },
+  { id: 'ORD-004', customer: 'Sarah van der Berg', country: 'South Africa', product: 'Peeling serum', sell: 320, cost: 80, status: 'Shipped', date: '2026-04-03', link: '' },
+  { id: 'ORD-005', customer: 'Mike Johnson', country: 'USA', product: 'Lumbar seat cushion', sell: 480, cost: 100, status: 'Cancelled', date: '2026-04-04', link: '' },
+];
+
+let products = [
+  { name: 'Car seat gap organiser', sales: 14, revenue: 4186, cost: 840, color: '#00e5a0' },
+  { name: 'Rain cloud diffuser', sales: 9, revenue: 4680, cost: 1080, color: '#4d9fff' },
+  { name: 'Peeling facial serum', sales: 7, revenue: 2240, cost: 560, color: '#ffb800' },
+  { name: 'Sneaker wash bag', sales: 12, revenue: 1800, cost: 360, color: '#ff4d4d' },
+  { name: 'Lumbar seat cushion', sales: 5, revenue: 2400, cost: 500, color: '#a78bfa' },
+];
+
+function totalProfit() { return orders.filter(o => o.status !== 'Cancelled').reduce((s, o) => s + (o.sell - o.cost), 0); }
+function totalRevenue() { return orders.filter(o => o.status !== 'Cancelled').reduce((s, o) => s + o.sell, 0); }
+function pendingCount() { return orders.filter(o => o.status === 'Pending' || o.status === 'Processing').length; }
+
+function badge(status) {
+  const map = { Shipped: 'shipped', Pending: 'pending', Processing: 'processing', Cancelled: 'cancelled', Delivered: 'shipped' };
+  return `<span class="badge badge-${map[status] || 'pending'}">${status}</span>`;
+}
+
+function renderDashboard() {
+  const rev = totalRevenue();
+  const prof = totalProfit();
+  return `
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Total profit</div><div class="stat-value green">${currency}${prof.toLocaleString()}</div><div class="stat-sub">${orders.filter(o=>o.status!=='Cancelled').length} orders</div></div>
+      <div class="stat-card"><div class="stat-label">Revenue</div><div class="stat-value">${currency}${rev.toLocaleString()}</div><div class="stat-sub">This month</div></div>
+      <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value amber">${pendingCount()}</div><div class="stat-sub">Need action</div></div>
+      <div class="stat-card"><div class="stat-label">Avg margin</div><div class="stat-value green">${rev>0?Math.round((prof/rev)*100):0}%</div><div class="stat-sub">Per order</div></div>
+    </div>
+    <div class="section-header"><div class="section-title">Recent orders</div><div class="section-action" onclick="showPage('orders')">View all →</div></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Order</th><th>Customer</th><th>Product</th><th>Country</th><th>Profit</th><th>Status</th></tr></thead>
+        <tbody>${orders.slice(0,5).map(o => `
+          <tr>
+            <td class="order-id">${o.id}</td>
+            <td class="customer">${o.customer}</td>
+            <td class="product-cell">${o.product}</td>
+            <td>${o.country}</td>
+            <td class="profit ${o.status==='Cancelled'?'neg':''}">${o.status==='Cancelled'?'-':'+'} ${currency}${o.sell-o.cost}</td>
+            <td>${badge(o.status)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="bottom-grid">
+      <div class="panel">
+        <div class="panel-title">Top products</div>
+        ${products.map(p => `
+          <div class="product-row">
+            <div class="product-dot" style="background:${p.color}"></div>
+            <div class="product-info">
+              <div class="product-name">${p.name}</div>
+              <div class="product-sales">${p.sales} sales</div>
+            </div>
+            <div class="product-rev">${currency}${(p.revenue-p.cost).toLocaleString()}</div>
+          </div>`).join('')}
+      </div>
+      <div class="panel">
+        <div class="panel-title">Quick WhatsApp templates</div>
+        <div class="wa-template">
+          <div class="wa-title">Order confirmed <span class="wa-copy" onclick="copyText(this, 'Hi! Your order has been confirmed. We\'ll send you tracking details within 24 hours. Thank you for shopping with us! 🙏')">copy</span></div>
+          <div class="wa-text">Hi! Your order has been confirmed. We'll send tracking within 24hrs. Thank you! 🙏</div>
+        </div>
+        <div class="wa-template">
+          <div class="wa-title">Order shipped <span class="wa-copy" onclick="copyText(this, 'Great news! Your order has been shipped and is on its way. Delivery takes 7-14 days. Track here: [link] 📦')">copy</span></div>
+          <div class="wa-text">Great news! Your order is on its way. Delivery: 7–14 days. Track here: [link] 📦</div>
+        </div>
+        <div class="wa-template">
+          <div class="wa-title">Delay notice <span class="wa-copy" onclick="copyText(this, 'Hi, we wanted to update you — your order is experiencing a small delay due to high demand. We\'re working on it and will update you soon. Sorry for the wait!')">copy</span></div>
+          <div class="wa-text">Hi, small delay due to high demand. We're on it and will update you soon. Sorry!</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderOrders() {
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Order ID</th><th>Date</th><th>Customer</th><th>Country</th><th>Product</th><th>Sale</th><th>Cost</th><th>Profit</th><th>Status</th></tr></thead>
+        <tbody>${orders.map(o => `
+          <tr>
+            <td class="order-id">${o.id}</td>
+            <td style="color:var(--text3);font-family:var(--font-mono);font-size:11px">${o.date}</td>
+            <td class="customer">${o.customer}</td>
+            <td>${o.country}</td>
+            <td class="product-cell">${o.product}</td>
+            <td style="font-family:var(--font-mono)">${currency}${o.sell}</td>
+            <td style="font-family:var(--font-mono);color:var(--text3)">${currency}${o.cost}</td>
+            <td class="profit ${o.status==='Cancelled'?'neg':''}">${o.status==='Cancelled'?'—':'+'} ${currency}${o.status==='Cancelled'?0:o.sell-o.cost}</td>
+            <td>${badge(o.status)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function renderProducts() {
+  return `
+    <div class="stats-grid">
+      ${products.map(p => `
+        <div class="stat-card">
+          <div class="stat-label" style="color:${p.color}">${p.name}</div>
+          <div class="stat-value green">${currency}${(p.revenue-p.cost).toLocaleString()}</div>
+          <div class="stat-sub">${p.sales} sales · ${currency}${Math.round((p.revenue-p.cost)/p.sales)} avg profit</div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function renderWhatsapp() {
+  const templates = [
+    { title: 'Order confirmed', body: "Hi [Name]! 👋 Your order for [Product] has been confirmed. We'll process it within 24 hours and send you tracking details. Thank you for your purchase! 🙏" },
+    { title: 'Order shipped', body: "Hi [Name]! 📦 Great news — your [Product] has been shipped! Estimated delivery: 7–14 business days. Track your order here: [tracking link]. Let us know if you have any questions!" },
+    { title: 'Out for delivery', body: "Hi [Name]! 🚚 Your order is out for delivery today! Keep an eye out for your package. We hope you love your [Product]! Please leave us a review when it arrives 🌟" },
+    { title: 'Delivery delay', body: "Hi [Name], we wanted to give you a heads up — your order is experiencing a small delay due to high demand at our supplier. We expect it to arrive within [X] days. Sorry for the inconvenience and thank you for your patience! 🙏" },
+    { title: 'Request review', body: "Hi [Name]! 😊 We hope you're loving your [Product]! We'd really appreciate it if you could leave us a quick review — it helps our small business grow. Thank you so much! ❤️" },
+    { title: 'Upsell follow-up', body: "Hi [Name]! Hope your [Product] arrived safely 🎉 We thought you might love this too — [Next product]. Reply 'YES' and we'll send you the link with a special discount just for you! 🛍️" },
+  ];
+  return `
+    <div style="max-width:640px">
+      ${templates.map(t => `
+        <div class="wa-template" style="margin-bottom:12px;padding:16px">
+          <div class="wa-title">${t.title} <span class="wa-copy" onclick="copyText(this, \`${t.body}\`)">copy</span></div>
+          <div class="wa-text" style="font-size:13px;margin-top:4px">${t.body}</div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function renderProfit() {
+  return `
+    <div style="max-width:500px">
+      <div class="panel" style="margin-bottom:20px">
+        <div class="panel-title">Profit calculator</div>
+        <div class="form-row"><label class="form-label">Sale price (${currency})</label><input class="form-input" id="calc-sell" type="number" placeholder="299" oninput="calcProfit()"></div>
+        <div class="form-row"><label class="form-label">AliExpress cost (${currency})</label><input class="form-input" id="calc-cost" type="number" placeholder="60" oninput="calcProfit()"></div>
+        <div class="form-row"><label class="form-label">Shipping cost (${currency})</label><input class="form-input" id="calc-ship" type="number" placeholder="0" oninput="calcProfit()"></div>
+        <div class="form-row"><label class="form-label">Platform fee % (optional)</label><input class="form-input" id="calc-fee" type="number" placeholder="0" oninput="calcProfit()"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:20px">
+          <div class="stat-card" style="padding:14px"><div class="stat-label">Profit</div><div class="stat-value green" id="calc-result-profit">R0</div></div>
+          <div class="stat-card" style="padding:14px"><div class="stat-label">Margin</div><div class="stat-value green" id="calc-result-margin">0%</div></div>
+          <div class="stat-card" style="padding:14px"><div class="stat-label">ROI</div><div class="stat-value green" id="calc-result-roi">0x</div></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function calcProfit() {
+  const sell = parseFloat(document.getElementById('calc-sell')?.value) || 0;
+  const cost = parseFloat(document.getElementById('calc-cost')?.value) || 0;
+  const ship = parseFloat(document.getElementById('calc-ship')?.value) || 0;
+  const fee = parseFloat(document.getElementById('calc-fee')?.value) || 0;
+  const feeAmt = sell * (fee / 100);
+  const profit = sell - cost - ship - feeAmt;
+  const margin = sell > 0 ? Math.round((profit / sell) * 100) : 0;
+  const roi = cost > 0 ? (profit / cost).toFixed(1) : 0;
+  const p = document.getElementById('calc-result-profit');
+  const m = document.getElementById('calc-result-margin');
+  const r = document.getElementById('calc-result-roi');
+  if (p) { p.textContent = `${currency}${Math.round(profit)}`; p.style.color = profit >= 0 ? 'var(--accent)' : 'var(--red)'; }
+  if (m) { m.textContent = `${margin}%`; m.style.color = margin >= 30 ? 'var(--accent)' : margin >= 0 ? 'var(--amber)' : 'var(--red)'; }
+  if (r) { r.textContent = `${roi}x`; }
+}
+
+function showPage(page) {
+  currentPage = page;
+  document.getElementById('page-title').textContent = PAGES[page];
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item')[Object.keys(PAGES).indexOf(page)].classList.add('active');
+  const pages = { dashboard: renderDashboard, orders: renderOrders, products: renderProducts, whatsapp: renderWhatsapp, profit: renderProfit };
+  document.getElementById('content').innerHTML = pages[page]();
+}
+
+function openModal() { document.getElementById('modal').classList.add('open'); }
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+function updateProfit() {
+  const sell = parseFloat(document.getElementById('f-sell')?.value) || 0;
+  const cost = parseFloat(document.getElementById('f-cost')?.value) || 0;
+  const el = document.getElementById('profit-preview');
+  if (el) el.textContent = `${currency}${Math.round(sell - cost)}`;
+}
+
+let orderCount = orders.length;
+function addOrder() {
+  const name = document.getElementById('f-name').value;
+  const product = document.getElementById('f-product').value;
+  const sell = parseFloat(document.getElementById('f-sell').value) || 0;
+  const cost = parseFloat(document.getElementById('f-cost').value) || 0;
+  const status = document.getElementById('f-status').value;
+  const country = document.getElementById('f-country').value;
+  const link = document.getElementById('f-link').value;
+  if (!name || !product) return alert('Please fill in customer name and product.');
+  orderCount++;
+  orders.unshift({ id: `ORD-00${orderCount}`, customer: name, country, product, sell, cost, status, date: new Date().toISOString().split('T')[0], link });
+  closeModal();
+  showPage('dashboard');
+}
+
+function copyText(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'copied!';
+    btn.style.color = 'var(--accent)';
+    setTimeout(() => { btn.textContent = 'copy'; btn.style.color = ''; }, 2000);
+  });
+}
+
+showPage('dashboard');
+</script>
+</body>
+</html>
