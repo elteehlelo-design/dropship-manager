@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dropship Manager — Global Dropshipping Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --surface2: #1a1a1a;
+    --border: #222222;
+    --border2: #2e2e2e;
+    --accent: #00e5a0;
+    --accent2: #00b37d;
+    --red: #ff4d4d;
+    --amber: #ffb800;
+    --blue: #4d9fff;
+    --text: #f0f0f0;
+    --text2: #888888;
+    --text3: #555555;
+    --font-head: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 14px; min-height: 100vh; display: flex; overflow: hidden; }
+
+  /* Auth Screen */
+  #auth-screen { position: fixed; inset: 0; background: var(--bg); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .auth-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 40px; width: 400px; max-width: 100%; text-align: center; }
+  .auth-logo { font-family: var(--font-head); font-size: 24px; font-weight: 800; color: var(--accent); margin-bottom: 8px; }
+  .auth-sub { font-size: 13px; color: var(--text3); margin-bottom: 32px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 1px; }
+  .auth-form { text-align: left; }
+  .auth-btn { width: 100%; padding: 12px; background: var(--accent); color: #000; border: none; border-radius: var(--radius-sm); font-weight: 600; cursor: pointer; margin-top: 16px; transition: background 0.2s; }
+  .auth-btn:hover { background: var(--accent2); }
+  .auth-switch { margin-top: 20px; font-size: 13px; color: var(--text3); cursor: pointer; }
+  .auth-switch span { color: var(--accent); }
+
+  /* Main Layout (hidden until login) */
+  #app-container { display: none; width: 100%; height: 100vh; }
+  body.logged-in #app-container { display: flex; }
+  body.logged-in #auth-screen { display: none; }
+
+  /* Sidebar */
+  .sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+  .logo { padding: 24px 20px 20px; border-bottom: 1px solid var(--border); cursor: pointer; transition: opacity 0.2s; }
+  .logo:hover { opacity: 0.8; }
+  .logo-mark { font-family: var(--font-head); font-size: 20px; font-weight: 800; color: var(--accent); letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; }
+  .logo-sub { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 1.5px; margin-top: 2px; font-family: var(--font-mono); }
+
+  /* AI Character */
+  .ai-bubble { position: fixed; bottom: 24px; right: 24px; z-index: 200; }
+  .ai-toggle { width: 56px; height: 56px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 26px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); transition: transform 0.2s; }
+  .ai-toggle:hover { transform: scale(1.08); }
+  .ai-toggle.primrose { background: linear-gradient(135deg, #ff6eb4, #c084fc); }
+  .ai-toggle.boldwin { background: linear-gradient(135deg, #3b82f6, #06b6d4); }
+  .ai-panel { position: fixed; bottom: 92px; right: 24px; width: 320px; background: var(--surface); border: 1px solid var(--border2); border-radius: 16px; overflow: hidden; display: none; flex-direction: column; box-shadow: 0 8px 40px rgba(0,0,0,0.5); z-index: 200; }
+  .ai-panel.open { display: flex; }
+  .ai-header { padding: 14px 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); }
+  .ai-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .ai-avatar.primrose { background: linear-gradient(135deg, #ff6eb4, #c084fc); }
+  .ai-avatar.boldwin { background: linear-gradient(135deg, #3b82f6, #06b6d4); }
+  .ai-name { font-size: 14px; font-weight: 600; color: var(--text); }
+  .ai-role { font-size: 11px; color: var(--text3); font-family: var(--font-mono); }
+  .ai-close { margin-left: auto; background: none; border: none; color: var(--text3); cursor: pointer; font-size: 18px; line-height: 1; }
+  .ai-messages { flex: 1; max-height: 280px; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .ai-msg { max-width: 85%; padding: 10px 13px; border-radius: 12px; font-size: 13px; line-height: 1.5; }
+  .ai-msg.bot { background: var(--surface2); color: var(--text2); border-bottom-left-radius: 4px; align-self: flex-start; }
+  .ai-msg.user { background: var(--accent); color: #000; border-bottom-right-radius: 4px; align-self: flex-end; font-weight: 500; }
+  .ai-input-row { padding: 12px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+  .ai-input { flex: 1; background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 13px; font-family: var(--font-body); outline: none; }
+  .ai-input:focus { border-color: var(--accent); }
+  .ai-send { background: var(--accent); border: none; border-radius: 8px; padding: 8px 12px; cursor: pointer; font-size: 14px; color: #000; font-weight: 700; transition: background 0.15s; }
+  .ai-send:hover { background: var(--accent2); }
+  .ai-typing { font-size: 12px; color: var(--text3); font-style: italic; padding: 0 14px 8px; }
+
+  /* Character select screen */
+  #char-screen { position: fixed; inset: 0; background: var(--bg); z-index: 900; display: none; align-items: center; justify-content: center; padding: 20px; }
+  #char-screen.open { display: flex; }
+  .char-card-wrap { text-align: center; max-width: 600px; width: 100%; }
+  .char-title { font-family: var(--font-head); font-size: 26px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+  .char-sub { font-size: 13px; color: var(--text3); font-family: var(--font-mono); margin-bottom: 40px; }
+  .char-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .char-option { background: var(--surface); border: 2px solid var(--border); border-radius: 16px; padding: 32px 24px; cursor: pointer; transition: all 0.2s; }
+  .char-option:hover { transform: translateY(-4px); }
+  .char-option.primrose-card:hover { border-color: #c084fc; }
+  .char-option.boldwin-card:hover { border-color: #3b82f6; }
+  .char-face { font-size: 56px; margin-bottom: 16px; }
+  .char-cname { font-family: var(--font-head); font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .char-cname.p { color: #c084fc; }
+  .char-cname.b { color: #3b82f6; }
+  .char-desc { font-size: 13px; color: var(--text3); line-height: 1.5; }
+  .char-skip { margin-top: 24px; font-size: 12px; color: var(--text3); cursor: pointer; font-family: var(--font-mono); }
+  .char-skip:hover { color: var(--text2); }
+  .nav { padding: 12px 0; flex: 1; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 20px; font-size: 13px; color: var(--text2); cursor: pointer; transition: all 0.15s; border-left: 2px solid transparent; }
+  .nav-item:hover { color: var(--text); background: var(--surface2); }
+  .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(0,229,160,0.05); }
+  .nav-icon { width: 16px; height: 16px; opacity: 0.7; }
+  .nav-item.active .nav-icon { opacity: 1; }
+  .sidebar-footer { padding: 16px 20px; border-top: 1px solid var(--border); }
+  .plan-badge { background: rgba(0,229,160,0.1); border: 1px solid rgba(0,229,160,0.2); border-radius: var(--radius-sm); padding: 6px 10px; font-size: 11px; color: var(--accent); font-family: var(--font-mono); }
+
+  /* Main */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { padding: 16px 28px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--surface); }
+  .page-title { font-family: var(--font-head); font-size: 18px; font-weight: 700; }
+  .topbar-actions { display: flex; gap: 10px; align-items: center; }
+  .btn { padding: 8px 16px; border-radius: var(--radius-sm); font-size: 13px; font-family: var(--font-body); cursor: pointer; transition: all 0.15s; border: none; font-weight: 500; }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border2); }
+  .btn-ghost:hover { color: var(--text); border-color: var(--text3); }
+  .content { flex: 1; overflow-y: auto; padding: 28px; }
+
+  /* Stats row */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; }
+  .stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; font-family: var(--font-mono); margin-bottom: 8px; }
+  .stat-value { font-family: var(--font-head); font-size: 26px; font-weight: 700; }
+  .stat-value.green { color: var(--accent); }
+  .stat-value.red { color: var(--red); }
+  .stat-value.amber { color: var(--amber); }
+  .stat-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  /* Section */
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .section-title { font-family: var(--font-head); font-size: 15px; font-weight: 600; }
+  .section-action { font-size: 12px; color: var(--accent); cursor: pointer; }
+
+  /* Orders table */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 28px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 12px 16px; font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; font-family: var(--font-mono); font-weight: 400; border-bottom: 1px solid var(--border); }
+  td { padding: 13px 16px; font-size: 13px; border-bottom: 1px solid var(--border); color: var(--text2); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+  .order-id { font-family: var(--font-mono); font-size: 12px; color: var(--text3); }
+  .customer { color: var(--text); font-weight: 500; }
+  .product-cell { color: var(--text); }
+  .profit { color: var(--accent); font-family: var(--font-mono); font-weight: 500; }
+  .profit.neg { color: var(--red); }
+
+  /* Status badges */
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 500; font-family: var(--font-mono); }
+  .badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; }
+  .badge-shipped { background: rgba(0,229,160,0.1); color: var(--accent); border: 1px solid rgba(0,229,160,0.2); }
+  .badge-shipped::before { background: var(--accent); }
+  .badge-pending { background: rgba(255,184,0,0.1); color: var(--amber); border: 1px solid rgba(255,184,0,0.2); }
+  .badge-pending::before { background: var(--amber); }
+  .badge-processing { background: rgba(77,159,255,0.1); color: var(--blue); border: 1px solid rgba(77,159,255,0.2); }
+  .badge-processing::before { background: var(--blue); }
+  .badge-cancelled { background: rgba(255,77,77,0.1); color: var(--red); border: 1px solid rgba(255,77,77,0.2); }
+  .badge-cancelled::before { background: var(--red); }
+
+  /* Bottom grid */
+  .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .panel-title { font-family: var(--font-head); font-size: 14px; font-weight: 600; margin-bottom: 16px; }
+
+  /* Product list */
+  .product-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .product-row:last-child { border-bottom: none; }
+  .product-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .product-info { flex: 1; }
+  .product-name { font-size: 13px; color: var(--text); margin-bottom: 2px; }
+  .product-sales { font-size: 11px; color: var(--text3); font-family: var(--font-mono); }
+  .product-rev { font-size: 13px; color: var(--accent); font-family: var(--font-mono); font-weight: 500; }
+
+  /* WhatsApp templates */
+  .wa-template { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 10px; }
+  .wa-template:last-child { margin-bottom: 0; }
+  .wa-title { font-size: 11px; color: var(--accent); font-family: var(--font-mono); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .wa-text { font-size: 12px; color: var(--text2); line-height: 1.6; }
+  .wa-copy { float: right; font-size: 11px; color: var(--text3); cursor: pointer; padding: 2px 8px; border: 1px solid var(--border2); border-radius: 4px; font-family: var(--font-mono); }
+  .wa-copy:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* Add order modal */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); padding: 28px; width: 480px; max-width: 95vw; }
+  .modal-title { font-family: var(--font-head); font-size: 18px; font-weight: 700; margin-bottom: 20px; }
+  .form-row { margin-bottom: 14px; }
+  .form-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; font-family: var(--font-mono); margin-bottom: 6px; display: block; }
+  .form-input { width: 100%; background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 10px 12px; color: var(--text); font-size: 13px; font-family: var(--font-body); outline: none; }
+  .form-input:focus { border-color: var(--accent); }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+  .profit-preview { background: rgba(0,229,160,0.05); border: 1px solid rgba(0,229,160,0.15); border-radius: var(--radius-sm); padding: 12px; margin-top: 14px; display: flex; justify-content: space-between; align-items: center; }
+  .profit-preview-label { font-size: 12px; color: var(--text3); font-family: var(--font-mono); }
+  .profit-preview-value { font-size: 20px; font-weight: 700; color: var(--accent); font-family: var(--font-head); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  select.form-input option { background: var(--surface2); }
+</style>
+</head>
+<body>
+
+<!-- Auth Screen -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo" style="display:flex;align-items:center;justify-content:center;gap:8px;">
+        <svg width="24" height="24" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="#00e5a0"/><path d="M8 22L14 10l5 8 3-4 6 8" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Dropship Manager
+      </div>
+    <div class="auth-sub">Cloud-Powered Dashboard</div>
+    <div class="auth-form">
+      <div class="form-row">
+        <label class="form-label">Email address</label>
+        <input class="form-input" id="auth-email" type="email" placeholder="name@company.com">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Password</label>
+        <input class="form-input" id="auth-password" type="password" placeholder="••••••••">
+      </div>
+      <button class="auth-btn" id="auth-btn" onclick="handleAuth()">Sign In</button>
+      <div class="auth-switch" id="auth-switch" onclick="toggleAuthMode()">
+        Don't have an account? <span>Sign Up</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- App Container -->
+<div id="app-container">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="logo" onclick="window.location.href='dropship-manager-landing.html'">
+      <div class="logo-mark">
+        <svg width="20" height="20" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="#00e5a0"/><path d="M8 22L14 10l5 8 3-4 6 8" stroke="#000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Dropship Manager
+      </div>
+      <div class="logo-sub">Global · All currencies</div>
+    </div>
+    <nav class="nav">
+      <div class="nav-item active" onclick="showPage('dashboard')">
+        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1" stroke-width="2"/></svg>
+        Dashboard
+      </div>
+      <div class="nav-item" onclick="showPage('orders')">
+        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Orders
+      </div>
+      <div class="nav-item" onclick="showPage('products')">
+        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+        Products
+      </div>
+      <div class="nav-item" onclick="showPage('whatsapp')">
+        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+        WhatsApp
+      </div>
+      <div class="nav-item" onclick="showPage('profit')">
+        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+        Profit Calc
+      </div>
+      <div class="nav-item" onclick="logout()" style="margin-top:auto; border-top:1px solid var(--border);">
+        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        Logout
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="plan-badge">FREE PLAN · 7 orders/mo</div>
+      <div id="usage-container" style="margin-top:12px; padding:0 4px;">
+        <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text3); margin-bottom:4px; font-family:var(--font-mono);">
+          <span>USAGE</span>
+          <span id="usage-text">0/7</span>
+        </div>
+        <div style="width:100%; height:4px; background:var(--border); border-radius:2px; overflow:hidden;">
+          <div id="usage-bar" style="width:0%; height:100%; background:var(--accent); transition:width 0.3s;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div class="page-title" id="page-title">Dashboard</div>
+      <div class="topbar-actions">
+        <select id="currency-select" onchange="setCurrency()" style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:7px 12px;color:var(--text);font-size:13px;font-family:var(--font-mono);outline:none;cursor:pointer;">
+          <option value="R">🇿🇦 ZAR (R)</option>
+          <option value="₦">🇳🇬 NGN (₦)</option>
+          <option value="KSh">🇰🇪 KES (KSh)</option>
+          <option value="$">🇺🇸 USD ($)</option>
+          <option value="£">🇬🇧 GBP (£)</option>
+          <option value="CA$">🇨🇦 CAD (CA$)</option>
+          <option value="A$">🇦🇺 AUD (A$)</option>
+          <option value="€">🇪🇺 EUR (€)</option>
+          <option value="₹">🇮🇳 INR (₹)</option>
+          <option value="₱">🇵🇭 PHP (₱)</option>
+          <option value="R$">🇧🇷 BRL (R$)</option>
+          <option value="AED">🇦🇪 AED</option>
+          <option value="RM">🇲🇾 MYR (RM)</option>
+        </select>
+        <button class="btn btn-ghost" onclick="openModal()">+ Add Order</button>
+        <button class="btn btn-primary">Upgrade → Pro</button>
+      </div>
+    </div>
+
+    <div class="content" id="content">
+      <!-- Dashboard page rendered by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- Add Order Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-title">Add new order</div>
+    <div class="form-grid">
+      <div class="form-row">
+        <label class="form-label">Customer name</label>
+        <input class="form-input" id="f-name" placeholder="John Dlamini" oninput="updateProfit()">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Country</label>
+        <select class="form-input" id="f-country">
+          <option>South Africa</option>
+          <option>Nigeria</option>
+          <option>Kenya</option>
+          <option>Ghana</option>
+          <option>Egypt</option>
+          <option>USA</option>
+          <option>UK</option>
+          <option>Canada</option>
+          <option>Australia</option>
+          <option>India</option>
+          <option>Philippines</option>
+          <option>Brazil</option>
+          <option>Mexico</option>
+          <option>UAE</option>
+          <option>Malaysia</option>
+          <option>Indonesia</option>
+          <option>Germany</option>
+          <option>France</option>
+          <option>Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Product name</label>
+      <input class="form-input" id="f-product" placeholder="Car seat gap organiser" oninput="updateProfit()">
+    </div>
+    <div class="form-grid">
+      <div class="form-row">
+        <label class="form-label">Sale price (in <span class="curr-symbol">R</span>)</label>
+        <input class="form-input" id="f-sell" type="number" placeholder="299" oninput="updateProfit()">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Cost price (in USD $)</label>
+        <input class="form-input" id="f-cost" type="number" placeholder="10" oninput="updateProfit()">
+        <div id="cost-hint" style="font-size:10px; color:var(--text3); margin-top:4px; font-family:var(--font-mono);">Est. <span id="converted-cost">R180</span></div>
+      </div>
+    </div>
+    <div class="form-row">
+      <label class="form-label">AliExpress order link</label>
+      <input class="form-input" id="f-link" placeholder="https://aliexpress.com/...">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Status</label>
+      <select class="form-input" id="f-status">
+        <option>Pending</option>
+        <option>Processing</option>
+        <option>Shipped</option>
+        <option>Delivered</option>
+        <option>Cancelled</option>
+      </select>
+    </div>
+    <div class="profit-preview">
+      <div>
+        <div class="profit-preview-label">Estimated profit</div>
+      </div>
+      <div class="profit-preview-value" id="profit-preview">R0</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" style="flex:1" onclick="addOrder()">Add order</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Supabase Configuration
+const SB_URL = 'https://kuoihjskyyhhvwbbvucc.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1b2loanNreXloaHZ3YmJ2dWNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMjc3NzQsImV4cCI6MjA5MDkwMzc3NH0.D_qiYUtUspM1QHuO0hw8tWvBqamq8ZwqD3bV6M1_Su4';
+const supabase = supabase.createClient(SB_URL, SB_KEY);
+
+let currency = 'R';
+let orders = [];
+let currentUser = null;
+let authMode = 'login';
+const PAGES = { dashboard: 'Dashboard', orders: 'Orders', products: 'Products', whatsapp: 'WhatsApp Templates', profit: 'Profit Calculator' };
+let currentPage = 'dashboard';
+
+const RATES = { 'R': 18.5, '₦': 1500, 'KSh': 130, '$': 1, '£': 0.79, 'CA$': 1.36, 'A$': 1.52, '€': 0.92, '₹': 83, '₱': 56, 'R$': 5.0, 'AED': 3.67, 'RM': 4.75 };
+
+// Auth Functions
+async function handleAuth() {
+  const email = document.getElementById('auth-email').value;
+  const password = document.getElementById('auth-password').value;
+  const btn = document.getElementById('auth-btn');
+  
+  if (!email || !password) return alert('Please enter both email and password.');
+  
+  btn.textContent = 'Processing...';
+  btn.disabled = true;
+
+  try {
+    let result;
+    if (authMode === 'login') {
+      result = await supabase.auth.signInWithPassword({ email, password });
+    } else {
+      result = await supabase.auth.signUp({ email, password });
+      if (result.data?.user && !result.data.session) {
+        alert('Success! Please check your email for the confirmation link.');
+        btn.textContent = 'Sign In';
+        btn.disabled = false;
+        return;
+      }
+    }
+
+    if (result.error) throw result.error;
+    
+    currentUser = result.data.user;
+    document.body.classList.add('logged-in');
+    await loadOrders();
+    showPage('dashboard');
+  } catch (err) {
+    alert(err.message);
+  } finally {
+    btn.textContent = authMode === 'login' ? 'Sign In' : 'Sign Up';
+    btn.disabled = false;
+  }
+}
+
+function toggleAuthMode() {
+  authMode = authMode === 'login' ? 'signup' : 'login';
+  document.getElementById('auth-btn').textContent = authMode === 'login' ? 'Sign In' : 'Sign Up';
+  document.getElementById('auth-switch').innerHTML = authMode === 'login' ? 
+    "Don't have an account? <span>Sign Up</span>" : 
+    "Already have an account? <span>Sign In</span>";
+}
+
+async function logout() {
+  await supabase.auth.signOut();
+  document.body.classList.remove('logged-in');
+  currentUser = null;
+  orders = [];
+}
+
+// Database Functions
+async function loadOrders() {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .order('created_at', { ascending: false });
+  
+  if (error) {
+    console.error('Error loading orders:', error);
+  } else {
+    orders = data.map(o => ({
+      id: o.id,
+      customer: o.customer,
+      country: o.country,
+      product: o.product,
+      sell: o.sell_price,
+      cost: o.cost_price,
+      status: o.status,
+      date: o.created_at.split('T')[0],
+      link: o.aliexpress_link
+    }));
+    updateUsage();
+  }
+}
+
+async function addOrder() {
+  const name = document.getElementById('f-name').value;
+  const product = document.getElementById('f-product').value;
+  const sell = parseFloat(document.getElementById('f-sell').value) || 0;
+  const costUSD = parseFloat(document.getElementById('f-cost').value) || 0;
+  const status = document.getElementById('f-status').value;
+  const country = document.getElementById('f-country').value;
+  const link = document.getElementById('f-link').value;
+  
+  if (!name || !product) return alert('Please fill in customer name and product.');
+  
+  if (orders.length >= 7) {
+    return alert('You have reached the 7-order limit for the Free Plan. Please upgrade to Pro to add more orders!');
+  }
+
+  const localRate = RATES[currency] || 1;
+  const costLocal = costUSD * localRate;
+
+  const { data, error } = await supabase
+    .from('orders')
+    .insert([{
+      user_id: currentUser.id,
+      customer: name,
+      country,
+      product,
+      sell_price: sell,
+      cost_price: costLocal,
+      status,
+      aliexpress_link: link
+    }])
+    .select();
+
+  if (error) {
+    alert('Error saving order: ' + error.message);
+  } else {
+    await loadOrders();
+    closeModal();
+    showPage('dashboard');
+  }
+}
+
+// UI Functions
+function setCurrency() {
+  currency = document.getElementById('currency-select').value;
+  document.querySelectorAll('.curr-symbol').forEach(el => el.textContent = currency);
+  showPage(currentPage);
+}
+
+function totalProfit() { return orders.filter(o => o.status !== 'Cancelled').reduce((s, o) => s + (o.sell - o.cost), 0); }
+function totalRevenue() { return orders.filter(o => o.status !== 'Cancelled').reduce((s, o) => s + o.sell, 0); }
+function pendingCount() { return orders.filter(o => o.status === 'Pending' || o.status === 'Processing').length; }
+
+function badge(status) {
+  const map = { Shipped: 'shipped', Pending: 'pending', Processing: 'processing', Cancelled: 'cancelled', Delivered: 'shipped' };
+  return `<span class="badge badge-${map[status] || 'pending'}">${status}</span>`;
+}
+
+function renderDashboard() {
+  const rev = totalRevenue();
+  const prof = totalProfit();
+  return `
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Total profit</div><div class="stat-value green">${currency}${prof.toLocaleString()}</div><div class="stat-sub">${orders.filter(o=>o.status!=='Cancelled').length} orders</div></div>
+      <div class="stat-card"><div class="stat-label">Revenue</div><div class="stat-value">${currency}${rev.toLocaleString()}</div><div class="stat-sub">This month</div></div>
+      <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value amber">${pendingCount()}</div><div class="stat-sub">Need action</div></div>
+      <div class="stat-card"><div class="stat-label">Avg margin</div><div class="stat-value green">${rev>0?Math.round((prof/rev)*100):0}%</div><div class="stat-sub">Per order</div></div>
+    </div>
+    <div class="section-header"><div class="section-title">Recent orders</div><div class="section-action" onclick="showPage('orders')">View all →</div></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Customer</th><th>Product</th><th>Country</th><th>Profit</th><th>Status</th></tr></thead>
+        <tbody>${orders.slice(0,5).map(o => `
+          <tr>
+            <td class="customer">${o.customer}</td>
+            <td class="product-cell">${o.product}</td>
+            <td>${o.country}</td>
+            <td class="profit ${o.status==='Cancelled'?'neg':''}">${o.status==='Cancelled'?'-':'+'} ${currency}${Math.round(o.sell-o.cost)}</td>
+            <td>${badge(o.status)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function renderOrders() {
+  return `
+    <div class="section-header">
+      <div class="section-title">All Orders</div>
+      <button class="btn btn-ghost" onclick="exportToCSV()">Download CSV</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Customer</th><th>Country</th><th>Product</th><th>Sale</th><th>Cost</th><th>Profit</th><th>Status</th></tr></thead>
+        <tbody>${orders.map(o => `
+          <tr>
+            <td style="color:var(--text3);font-family:var(--font-mono);font-size:11px">${o.date}</td>
+            <td class="customer">${o.customer}</td>
+            <td>${o.country}</td>
+            <td class="product-cell">${o.product}</td>
+            <td style="font-family:var(--font-mono)">${currency}${o.sell}</td>
+            <td style="font-family:var(--font-mono);color:var(--text3)">${currency}${Math.round(o.cost)}</td>
+            <td class="profit ${o.status==='Cancelled'?'neg':''}">${o.status==='Cancelled'?'—':'+'} ${currency}${o.status==='Cancelled'?0:Math.round(o.sell-o.cost)}</td>
+            <td>${badge(o.status)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function exportToCSV() {
+  const headers = ['Date', 'Customer', 'Country', 'Product', 'Sale Price', 'Cost Price', 'Profit', 'Status'];
+  const rows = orders.map(o => [o.date, o.customer, o.country, o.product, o.sell, o.cost, o.sell - o.cost, o.status]);
+  let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", `dropship_orders.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+function showPage(page) {
+  currentPage = page;
+  updateUsage();
+  document.getElementById('page-title').textContent = PAGES[page];
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const navItems = document.querySelectorAll('.nav-item');
+  const index = Object.keys(PAGES).indexOf(page);
+  if (navItems[index]) navItems[index].classList.add('active');
+  const pages = { dashboard: renderDashboard, orders: renderOrders, products: () => '<div class="panel">Product analytics coming soon.</div>', whatsapp: () => '<div class="panel">WhatsApp templates coming soon.</div>', profit: () => '<div class="panel">Profit calculator coming soon.</div>' };
+  document.getElementById('content').innerHTML = pages[page]();
+}
+
+function updateUsage() {
+  const count = orders.length;
+  const limit = 7;
+  const percent = Math.min((count / limit) * 100, 100);
+  const bar = document.getElementById('usage-bar');
+  const text = document.getElementById('usage-text');
+  if (bar) bar.style.width = percent + '%';
+  if (text) text.textContent = `${count}/${limit}`;
+}
+
+function updateProfit() {
+  const sell = parseFloat(document.getElementById('f-sell')?.value) || 0;
+  const costUSD = parseFloat(document.getElementById('f-cost')?.value) || 0;
+  const localRate = RATES[currency] || 1;
+  const convertedCost = costUSD * localRate;
+  const hintEl = document.getElementById('converted-cost');
+  if (hintEl) hintEl.textContent = `${currency}${Math.round(convertedCost)}`;
+  const el = document.getElementById('profit-preview');
+  if (el) el.textContent = `${currency}${Math.round(sell - convertedCost)}`;
+}
+
+function openModal() { document.getElementById('modal').classList.add('open'); }
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+// Check session on start
+async function checkUser() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    document.body.classList.add('logged-in');
+    await loadOrders();
+    showPage('dashboard');
+  }
+}
+
+checkUser();
+</script>
+
+<!-- Character Select Screen -->
+<div id="char-screen">
+  <div class="char-card-wrap">
+    <div class="char-title">Choose your AI assistant</div>
+    <div class="char-sub">Pick who guides you through Dropship Manager</div>
+    <div class="char-grid">
+      <div class="char-option primrose-card" onclick="selectChar('primrose')">
+        <div class="char-face" style="animation: charFloat 3s ease-in-out infinite;">🌸</div>
+        <div class="char-cname p">Primrose</div>
+        <div class="char-desc">Your warm, encouraging female advisor. She celebrates wins, spots problems early, and sends daily check-ins to keep you on track.</div>
+        <div style="margin-top:10px;font-size:11px;color:#c084fc;font-family:var(--font-mono);">DAILY CHECK-INS · CUSTOMER REPLIES · CELEBRATIONS</div>
+      </div>
+      <div class="char-option boldwin-card" onclick="selectChar('boldwin')">
+        <div class="char-face" style="animation: charFloat 3s ease-in-out infinite 0.5s;">⚡</div>
+        <div class="char-cname b">Boldwin</div>
+        <div class="char-desc">Your straight-talking male strategist. Weekly reports, product verdicts, and blunt alerts — he keeps your numbers honest.</div>
+        <div style="margin-top:10px;font-size:11px;color:#3b82f6;font-family:var(--font-mono);">WEEKLY REPORTS · PRODUCT VERDICTS · SMART ALERTS</div>
+      </div>
+    </div>
+    <div class="char-skip" onclick="skipChar()">Skip for now →</div>
+  </div>
+</div>
+
+<!-- Milestone Celebration Overlay -->
+<div id="milestone-overlay" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:24px;">
+  <div id="milestone-emoji" style="font-size:72px;margin-bottom:16px;animation:milestonePop 0.5s ease;">🎉</div>
+  <div id="milestone-title" style="font-family:var(--font-head);font-size:32px;font-weight:800;color:#fff;margin-bottom:8px;"></div>
+  <div id="milestone-msg" style="font-size:16px;color:#888;max-width:400px;line-height:1.6;margin-bottom:28px;"></div>
+  <button onclick="closeMilestone()" style="background:var(--accent);color:#000;border:none;padding:12px 32px;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;">Let's keep going! →</button>
+</div>
+
+<!-- Smart Alert Banner -->
+<div id="alert-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:300;padding:12px 24px;display:none;align-items:center;justify-content:space-between;gap:12px;">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span id="alert-emoji" style="font-size:18px;">⚠️</span>
+    <span id="alert-msg" style="font-size:13px;font-weight:500;"></span>
+  </div>
+  <button onclick="dismissAlert()" style="background:none;border:1px solid rgba(255,255,255,0.3);border-radius:4px;color:inherit;padding:4px 12px;font-size:12px;cursor:pointer;">Dismiss</button>
+</div>
+
+<!-- AI Chat Widget -->
+<div class="ai-bubble" id="ai-bubble" style="display:none">
+  <div class="ai-panel" id="ai-panel">
+    <div class="ai-header">
+      <div class="ai-avatar" id="ai-avatar" style="transition:transform 0.3s;">🌸</div>
+      <div style="flex:1;">
+        <div class="ai-name" id="ai-name">Primrose</div>
+        <div class="ai-role" id="ai-role">Your AI advisor</div>
+      </div>
+      <button onclick="switchChar()" style="background:none;border:1px solid var(--border2);border-radius:4px;color:var(--text3);padding:3px 8px;font-size:10px;cursor:pointer;font-family:var(--font-mono);margin-right:6px;" title="Switch character">SWITCH</button>
+      <button class="ai-close" onclick="toggleAI()">×</button>
+    </div>
+    <div id="ai-mood-bar" style="padding:6px 14px;font-size:11px;font-family:var(--font-mono);border-bottom:1px solid var(--border);"></div>
+    <div class="ai-messages" id="ai-messages"></div>
+    <div class="ai-typing" id="ai-typing" style="display:none">typing...</div>
+    <div class="ai-input-row">
+      <input class="ai-input" id="ai-input" placeholder="Ask me anything..." onkeydown="if(event.key==='Enter')sendAI()">
+      <button class="ai-send" onclick="sendAI()">↑</button>
+    </div>
+  </div>
+  <button class="ai-toggle" id="ai-toggle" onclick="toggleAI()" style="position:relative;">🌸
+    <span id="alert-dot" style="display:none;position:absolute;top:2px;right:2px;width:10px;height:10px;background:#ff4d4d;border-radius:50%;border:2px solid var(--bg);"></span>
+  </button>
+</div>
+
+<style>
+@keyframes charFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+@keyframes milestonePop { 0%{transform:scale(0.5);opacity:0} 70%{transform:scale(1.2)} 100%{transform:scale(1);opacity:1} }
+@keyframes avatarBob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+@keyframes alertSlide { from{transform:translateY(-100%)} to{transform:translateY(0)} }
+</style>
+
+<script>
+let selectedChar = localStorage.getItem('dm_char') || null;
+let lastCheckinDate = localStorage.getItem('dm_checkin') || null;
+let alertDismissed = false;
+
+const MILESTONES = [
+  { key: 'first_order', count: 1, emoji: '🎉', title: 'FIRST ORDER!', p: "This is where your journey begins! Log it, ship it, and let's get the next one. I'm so proud of you 🌸", b: "First order logged. That's step one. Now focus — get the next one faster. The grind starts now. ⚡" },
+  { key: 'ten_orders', count: 10, emoji: '🔥', title: '10 ORDERS!', p: "10 orders!! You're officially a dropshipper! This is real momentum — keep it going 💜", b: "10 orders. Good start. Now analyse which product has the best margin and double down on it. ⚡" },
+  { key: 'fifty_orders', count: 50, emoji: '🚀', title: '50 ORDERS!', p: "50 ORDERS! You're running a real business now! I always knew you had it in you 🌸🚀", b: "50 orders. You've validated your model. Time to systemise, automate, and scale. Don't slow down. ⚡" },
+  { key: 'hundred_orders', count: 100, emoji: '👑', title: '100 ORDERS!', p: "100 ORDERS!! You are absolutely crushing it! Screenshot this — you've earned it 👑🌸", b: "100 orders. Serious operator. Now hire a VA, automate fulfilment, and start building a brand. ⚡" },
+];
+
+const CHARS = {
+  primrose: {
+    name: 'Primrose', role: 'Your AI advisor', emoji: '🌸', cls: 'primrose', color: '#c084fc',
+    greet: "Hi! I'm Primrose 🌸 I'm here to help you grow your dropshipping business. Ask me anything — profit tips, order questions, or just tell me how your day is going!",
+    checkin: (pending, profit) => `Good morning! ☀️ You have ${pending} pending order${pending!==1?'s':''} needing attention. Your total profit is looking ${profit>1000?'amazing 💜':'good — keep building 🌱'}. Today's goal: ${pending>0?'clear those pending orders first!':'add one new product to test!'} You've got this! 🌸`,
+    weeklyReport: (orders, profit, margin, best, worst) => `Weekly wrap-up 🌸 You had ${orders} orders this week with ${margin}% average margin. ${best?`Your star product was "${best}" — keep it going! ⭐`:'No standout product yet — keep testing!'} ${worst?`"${worst}" needs attention though 💜`:'Everything is trending well!'} Overall: ${profit>500?`great week! R${profit} profit 🎉`:`steady progress. Every order counts! 💪`}`,
+    mood: (pending, margin) => pending > 3 ? { text: '⚠️ You have pending orders — let\'s clear them!', color: '#ffb800' } : margin < 40 ? { text: '💜 Your margins need some love today', color: '#c084fc' } : { text: '🌸 Things are looking great today!', color: '#00e5a0' },
+    alert: (type) => ({
+      pending: { emoji: '💜', msg: 'Primrose here — you have orders sitting in Pending for 48+ hours. Your customers are waiting!', color: 'rgba(192,132,252,0.15)', border: '#c084fc' },
+      margin: { emoji: '🌸', msg: 'Heads up! Some of your products have margins below 50%. Let me help you fix that.', color: 'rgba(255,184,0,0.15)', border: '#ffb800' },
+      noSales: { emoji: '💜', msg: "It's been a quiet few days. Let's talk about what we can do to get things moving!", color: 'rgba(192,132,252,0.15)', border: '#c084fc' },
+    })[type],
+    responses: {
+      profit: ["To boost profit, focus on products with 70%+ margins. Your bestsellers should cost less than 30% of your sale price 💰", "Always factor in shipping + platform fees. Many dropshippers forget this and lose money without realising it! 📊", "A quick win: raise your prices by 10% on your best sellers. You'll be surprised how many customers still buy! 🌸"],
+      order: ["Update your customer via WhatsApp within 24 hours of purchase — it builds massive trust! 📦", "Anything sitting in Pending for 48+ hours needs immediate attention. Customers remember delays 💜", "Pro tip: batch your order processing at the same time each day. Routine = fewer mistakes!"],
+      product: ["The best products solve a clear problem OR have a wow factor that stops scrollers 🛍️", "Focus on 3-5 winning products max. Too many = too little focus. Nail one first! 🎯", "Ask yourself: would I buy this? If the answer isn't an instant yes, your customers will hesitate too 🌸"],
+      currency: ["Price in your customer's local currency — it builds trust and boosts conversions 🌍", "Always calculate profit in the currency your customer pays in, not AliExpress USD ✅"],
+      complaint: ["Oh no! Let's handle this with care 💜 Here's a reply you can copy:\n\n'Hi [Name]! I'm so sorry about this — your experience matters to me. I'd love to make this right immediately. Could you send me a photo so I can sort this out for you? 🙏'\n\nAlways respond within 2 hours — fast replies turn complaints into loyal customers!"],
+      country: { ZA: "For SA customers: offer PayFast or SnapScan — reduces card abandonment by 30%! 🇿🇦", NG: "For Nigerian customers: offer bank transfer as a payment option — it's the most trusted method 🇳🇬", KE: "For Kenyan buyers: M-Pesa integration converts 40% better than card payments 🇰🇪", default: "Always offer a local payment method for your customer's country — it builds trust instantly! 🌍" },
+      hello: ["Hello! So glad you're here. What are we working on today? 🌸", "Hey! Ready to grow your business? Tell me what's on your mind 💪", "Hi! I've been waiting to hear from you. What do you need? 🌸"],
+      verdict: (product, price, cost) => { const margin = Math.round(((price-cost)/price)*100); return margin >= 65 ? `${product} at that price? Margin is ${margin}% — that's excellent! 🌸 I say go for it and start with a small test batch!` : margin >= 45 ? `${product} has a ${margin}% margin — decent but not amazing 💜 Try negotiating the cost down before scaling.` : `${product} only has a ${margin}% margin — that's risky 😟 I'd look for a cheaper supplier or raise your price first.`; },
+      default: ["Always track your numbers daily. Small leaks sink big ships! 🚢", "Consistency beats everything. One order a day becomes 30/month — that's real income 🌱", "Focus on what's working, cut what isn't, and always be testing. You've got this! 🌸", "Remember: every successful dropshipper started exactly where you are. Keep going 💜"]
+    }
+  },
+  boldwin: {
+    name: 'Boldwin', role: 'Your AI strategist', emoji: '⚡', cls: 'boldwin', color: '#3b82f6',
+    greet: "Boldwin here. ⚡ No sugarcoating — just straight strategy. Ask me about margins, scaling, products, or what's holding your business back. Let's work.",
+    checkin: (pending, profit) => `Status check. ⚡ ${pending} pending order${pending!==1?'s':''} need action. Total profit: ${profit}. ${pending > 2 ? 'Clear those pending orders first — that\'s your priority.' : 'Pending orders look clean.'} Today\'s move: ${profit < 500 ? 'find one new product to test.' : 'analyse your top product and double your ad spend on it.'}`,
+    weeklyReport: (orders, profit, margin, best, worst) => `WEEK ${new Date().toLocaleDateString('en', {month:'short',day:'numeric'})} REPORT ⚡\n\nOrders: ${orders} | Profit: ${profit} | Avg margin: ${margin}%\n\nBest product: ${best || 'None yet'}\nDrop immediately: ${worst || 'Nothing to cut'}\n\nVerdict: ${margin >= 60 ? 'Solid week. Scale the winner.' : margin >= 40 ? 'Acceptable. Raise your prices 10% and test.' : 'Margins too thin. Fix your costs or raise prices. Now.'}`,
+    mood: (pending, margin) => pending > 3 ? { text: '⚡ Action required — pending orders piling up', color: '#ff4d4d' } : margin < 40 ? { text: '⚡ Margins below 40% — you need to fix this', color: '#ffb800' } : { text: '⚡ Numbers look solid. Keep executing.', color: '#00e5a0' },
+    alert: (type) => ({
+      pending: { emoji: '⚡', msg: 'Boldwin: 4+ orders stuck in Pending. Every hour you wait = unhappy customers. Fix it now.', color: 'rgba(59,130,246,0.15)', border: '#3b82f6' },
+      margin: { emoji: '⚡', msg: 'Boldwin: your average margin dropped below 50%. That\'s unsustainable. Raise prices or cut supplier costs.', color: 'rgba(255,77,77,0.15)', border: '#ff4d4d' },
+      noSales: { emoji: '⚡', msg: 'Boldwin: 3 days without a sale. Something is broken. Check your listing, your price, and your traffic source.', color: 'rgba(59,130,246,0.15)', border: '#3b82f6' },
+    })[type],
+    responses: {
+      profit: ["Under 50% margin? You're working too hard for too little. Target 65-80%. No exceptions. 📊", "Profit = Sale price minus ALL costs. AliExpress + shipping + fees + your time. Run those numbers.", "Raise your prices 10%. Most dropshippers are underpriced. Test it — you'll be surprised. ⚡"],
+      order: ["Pending order over 48 hours? Follow up with the supplier immediately. No excuses. 🕐", "Ship fast, communicate faster. WhatsApp update at every status change. That's how you get 5-star reviews.", "Batch your order processing. Same time, every day. Discipline = fewer errors = happier customers."],
+      product: ["One winning product beats ten average ones. Find the one that converts and scale hard. 🎯", "Test with TikTok organic first. Zero cost. No traction in 7 days? Drop it. Move on.", "Stop adding products until your current one is profitable. Depth before breadth. ⚡"],
+      currency: ["Price in the buyer's currency. A Nigerian seeing $15 converts worse than one seeing ₦22,000. 🌍", "Never quote AliExpress USD to local customers. Always convert. Always."],
+      complaint: ["Customer complaint? Here's what to send:\n\n'Hi [Name], I've seen your message and I'm handling this personally. Can you send me a photo of the issue? I'll resolve this within 24 hours.'\n\nRespond fast, resolve faster. Complaints handled well become your best reviews. ⚡"],
+      country: { ZA: "SA market: cash on delivery and EFT are king. Card abandonment is high. Adapt. 🇿🇦", NG: "Nigeria: bank transfer or Flutterwave. Card fraud is high — protect yourself. 🇳🇬", KE: "Kenya: M-Pesa is non-negotiable. If you don't offer it, you're losing 40% of buyers. 🇰🇪", default: "Research your target country's top payment method before you sell there. Non-negotiable. ⚡" },
+      hello: ["Let's cut to it. What's your biggest problem right now? ⚡", "Good. You're here. What needs fixing?", "Talk to me. Numbers, products, customers — what's the issue? ⚡"],
+      verdict: (product, price, cost) => { const margin = Math.round(((price-cost)/price)*100); return margin >= 65 ? `${product}: ${margin}% margin. ⚡ That's a go. Start with 5 test orders before you scale.` : margin >= 45 ? `${product}: ${margin}% margin. Borderline. Negotiate your cost down 15% before committing.` : `${product}: ${margin}% margin. Hard no. Find a cheaper supplier or raise your price. Don't sell at those numbers.`; },
+      default: ["Most dropshippers fail because they quit too early. The first 30 days are the hardest. Push through. 💪", "Your best next move: analyse what's already working and do more of that. Stop chasing new things.", "One product, one audience, one platform. Master that before you diversify. Execute. ⚡", "Data doesn't lie. If a product has no sales in 14 days, it's dead. Cut it and move on."]
+    }
+  }
+};
+
+function selectChar(name) {
+  selectedChar = name;
+  localStorage.setItem('dm_char', name);
+  document.getElementById('char-screen').classList.remove('open');
+  initAI();
+}
+
+function skipChar() {
+  selectedChar = 'primrose';
+  localStorage.setItem('dm_char', 'primrose');
+  document.getElementById('char-screen').classList.remove('open');
+  initAI();
+}
+
+function switchChar() {
+  const next = selectedChar === 'primrose' ? 'boldwin' : 'primrose';
+  selectedChar = next;
+  localStorage.setItem('dm_char', next);
+  const msgs = document.getElementById('ai-messages');
+  msgs.innerHTML = '';
+  initAI(true);
+}
+
+function initAI(isSwitching = false) {
+  if (!selectedChar) return;
+  const char = CHARS[selectedChar];
+  const bubble = document.getElementById('ai-bubble');
+  const toggle = document.getElementById('ai-toggle');
+  const avatar = document.getElementById('ai-avatar');
+  document.getElementById('ai-name').textContent = char.name;
+  document.getElementById('ai-role').textContent = char.role;
+  bubble.style.display = 'block';
+  toggle.className = `ai-toggle ${char.cls}`;
+  toggle.textContent = char.emoji;
+  avatar.className = `ai-avatar ${char.cls}`;
+  avatar.style.animation = 'avatarBob 2s ease-in-out infinite';
+  avatar.textContent = char.emoji;
+  updateMoodBar();
+  if (isSwitching) {
+    const switchMsg = selectedChar === 'primrose'
+      ? "Hi! Primrose here 🌸 Boldwin filled me in. I'm ready to take over — how can I help you today?"
+      : "Boldwin. ⚡ Primrose briefed me. Let's get straight to work — what do you need?";
+    addMessage(switchMsg, 'bot');
+  } else {
+    addMessage(char.greet, 'bot');
+    runDailyCheckin();
+  }
+  runSmartAlerts();
+  checkMilestones();
+}
+
+function updateMoodBar() {
+  const char = CHARS[selectedChar];
+  const bar = document.getElementById('ai-mood-bar');
+  if (!bar) return;
+  const pending = (orders||[]).filter(o => o.status === 'Pending' || o.status === 'Processing').length;
+  const rev = (orders||[]).filter(o=>o.status!=='Cancelled').reduce((s,o)=>s+o.sell,0);
+  const prof = (orders||[]).filter(o=>o.status!=='Cancelled').reduce((s,o)=>s+(o.sell-o.cost),0);
+  const margin = rev > 0 ? Math.round((prof/rev)*100) : 0;
+  const mood = char.mood(pending, margin);
+  bar.textContent = mood.text;
+  bar.style.color = mood.color;
+}
+
+function runDailyCheckin() {
+  const today = new Date().toDateString();
+  if (lastCheckinDate === today) return;
+  localStorage.setItem('dm_checkin', today);
+  lastCheckinDate = today;
+  const char = CHARS[selectedChar];
+  const pending = (orders||[]).filter(o=>o.status==='Pending'||o.status==='Processing').length;
+  const prof = (orders||[]).filter(o=>o.status!=='Cancelled').reduce((s,o)=>s+(o.sell-o.cost),0);
+  setTimeout(() => addMessage(char.checkin(pending, prof), 'bot'), 1500);
+}
+
+function runWeeklyReport() {
+  const char = CHARS[selectedChar];
+  const allOrders = orders || [];
+  const active = allOrders.filter(o=>o.status!=='Cancelled');
+  const prof = active.reduce((s,o)=>s+(o.sell-o.cost),0);
+  const rev = active.reduce((s,o)=>s+o.sell,0);
+  const margin = rev>0?Math.round((prof/rev)*100):0;
+  const prodMap = {};
+  active.forEach(o=>{ if(!prodMap[o.product]) prodMap[o.product]=0; prodMap[o.product]+=(o.sell-o.cost); });
+  const sorted = Object.entries(prodMap).sort((a,b)=>b[1]-a[1]);
+  const best = sorted[0]?.[0] || null;
+  const worst = sorted[sorted.length-1]?.[0] || null;
+  addMessage(char.weeklyReport(active.length, prof, margin, best, worst), 'bot');
+}
+
+function runSmartAlerts() {
+  if (alertDismissed) return;
+  const allOrders = orders || [];
+  const pending = allOrders.filter(o=>o.status==='Pending'||o.status==='Processing').length;
+  const active = allOrders.filter(o=>o.status!=='Cancelled');
+  const rev = active.reduce((s,o)=>s+o.sell,0);
+  const prof = active.reduce((s,o)=>s+(o.sell-o.cost),0);
+  const margin = rev>0?Math.round((prof/rev)*100):0;
+  const char = CHARS[selectedChar];
+  let alertType = null;
+  if (pending >= 4) alertType = 'pending';
+  else if (margin < 40 && active.length > 0) alertType = 'margin';
+  else if (allOrders.length === 0) alertType = 'noSales';
+  if (alertType) {
+    const alert = char.alert(alertType);
+    showAlertBanner(alert);
+  }
+}
+
+function showAlertBanner(alert) {
+  const banner = document.getElementById('alert-banner');
+  const dot = document.getElementById('alert-dot');
+  document.getElementById('alert-emoji').textContent = alert.emoji;
+  document.getElementById('alert-msg').textContent = alert.msg;
+  banner.style.background = alert.color;
+  banner.style.borderBottom = `1px solid ${alert.border}`;
+  banner.style.color = '#f0f0f0';
+  banner.style.display = 'flex';
+  banner.style.animation = 'alertSlide 0.3s ease';
+  if (dot) dot.style.display = 'block';
+}
+
+function dismissAlert() {
+  alertDismissed = true;
+  document.getElementById('alert-banner').style.display = 'none';
+  const dot = document.getElementById('alert-dot');
+  if (dot) dot.style.display = 'none';
+}
+
+function checkMilestones() {
+  const count = (orders||[]).length;
+  const checked = JSON.parse(localStorage.getItem('dm_milestones') || '[]');
+  for (const m of MILESTONES) {
+    if (count >= m.count && !checked.includes(m.key)) {
+      checked.push(m.key);
+      localStorage.setItem('dm_milestones', JSON.stringify(checked));
+      showMilestone(m);
+      break;
+    }
+  }
+}
+
+function showMilestone(m) {
+  const char = CHARS[selectedChar];
+  const msg = selectedChar === 'primrose' ? m.p : m.b;
+  document.getElementById('milestone-emoji').textContent = m.emoji;
+  document.getElementById('milestone-title').textContent = m.title;
+  document.getElementById('milestone-msg').textContent = msg;
+  const overlay = document.getElementById('milestone-overlay');
+  overlay.style.display = 'flex';
+  setTimeout(() => addMessage(`${m.emoji} ${m.title} ${msg}`, 'bot'), 1000);
+}
+
+function closeMilestone() {
+  document.getElementById('milestone-overlay').style.display = 'none';
+}
+
+function toggleAI() {
+  const panel = document.getElementById('ai-panel');
+  panel.classList.toggle('open');
+  if (panel.classList.contains('open')) {
+    document.getElementById('ai-input').focus();
+    updateMoodBar();
+  }
+}
+
+function addMessage(text, type) {
+  const msgs = document.getElementById('ai-messages');
+  const div = document.createElement('div');
+  div.className = `ai-msg ${type}`;
+  div.textContent = text;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  if (type === 'bot') {
+    const avatar = document.getElementById('ai-avatar');
+    avatar.style.transform = 'scale(1.15)';
+    setTimeout(() => avatar.style.transform = 'scale(1)', 300);
+  }
+}
+
+function sendAI() {
+  const input = document.getElementById('ai-input');
+  const text = input.value.trim();
+  if (!text) return;
+  addMessage(text, 'user');
+  input.value = '';
+  const char = CHARS[selectedChar];
+  const typing = document.getElementById('ai-typing');
+  typing.style.display = 'block';
+  setTimeout(() => {
+    typing.style.display = 'none';
+    const lower = text.toLowerCase();
+    let reply = null;
+
+    // Product verdict trigger
+    const verdictMatch = lower.match(/(?:verdict|worth|should i sell|sell this)[^0-9]*(\d+)[^0-9]*(\d+)/);
+    if (verdictMatch) {
+      const price = parseFloat(verdictMatch[1]);
+      const cost = parseFloat(verdictMatch[2]);
+      reply = char.responses.verdict(text.split(' ')[0] || 'This product', price, cost);
+    }
+    // Customer complaint trigger
+    else if (lower.includes('complaint') || lower.includes('angry') || lower.includes('refund') || lower.includes('damaged') || lower.includes('not arrived') || lower.includes('customer says')) {
+      reply = char.responses.complaint;
+    }
+    // Weekly report trigger
+    else if (lower.includes('weekly') || lower.includes('week report') || lower.includes('this week') || lower.includes('summary')) {
+      runWeeklyReport(); return;
+    }
+    // Country tips
+    else if (lower.includes('south africa') || lower.includes(' sa ') || lower.includes('zar')) reply = char.responses.country.ZA;
+    else if (lower.includes('nigeria') || lower.includes('nigerian') || lower.includes('naira')) reply = char.responses.country.NG;
+    else if (lower.includes('kenya') || lower.includes('kenyan') || lower.includes('mpesa')) reply = char.responses.country.KE;
+    // Topic matching
+    else if (lower.includes('profit') || lower.includes('margin') || lower.includes('money')) reply = char.responses.profit[Math.floor(Math.random()*char.responses.profit.length)];
+    else if (lower.includes('order') || lower.includes('ship') || lower.includes('deliver') || lower.includes('pending')) reply = char.responses.order[Math.floor(Math.random()*char.responses.order.length)];
+    else if (lower.includes('product') || lower.includes('sell') || lower.includes('niche') || lower.includes('item')) reply = char.responses.product[Math.floor(Math.random()*char.responses.product.length)];
+    else if (lower.includes('currency') || lower.includes('payment') || lower.includes('pay')) reply = char.responses.currency[Math.floor(Math.random()*char.responses.currency.length)];
+    else if (lower.match(/^(hi|hello|hey|sup|yo|hola)/)) reply = char.responses.hello[Math.floor(Math.random()*char.responses.hello.length)];
+    else reply = char.responses.default[Math.floor(Math.random()*char.responses.default.length)];
+
+    addMessage(reply, 'bot');
+  }, 800 + Math.random() * 500);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (document.body.classList.contains('logged-in') && !selectedChar) {
+    document.getElementById('char-screen').classList.add('open');
+  }
+  if (selectedChar) initAI();
+});
+
+const origHandleAuth = window.handleAuth;
+window.handleAuth = async function() {
+  await origHandleAuth?.();
+  setTimeout(() => {
+    if (document.body.classList.contains('logged-in')) {
+      if (!localStorage.getItem('dm_char')) {
+        document.getElementById('char-screen').classList.add('open');
+      } else {
+        initAI();
+      }
+    }
+  }, 500);
+};
+</script>
+</body>
+</html>
